@@ -3,32 +3,74 @@ from MCMC_CHAIN import *
 from Visualisation import *
 from placeholder import *
 
-
 # Set up logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
+
 logger = logging.getLogger('enhanced_mcmc_mice')
 class SelectiveDataPreparation:
     @staticmethod
-    def prepare_selective_data(df, target, features, time_col='Date_Time', max_lags=2, data_type ='air'):
+    def prepare_selective_data(df, target, features, time_col='Date_Time', max_lags=2, 
+                               data_type='air', include_future_y_lags=True):
         """
         Simple wrapper that calls _prepare_lags_only
         """
-        return SelectiveDataPreparation._prepare_lags_only(df, target, features, time_col, max_lags, data_type)
+        return SelectiveDataPreparation._prepare_lags_only(
+            df, target, features, time_col, max_lags, data_type, 
+            include_x_lags=False, include_future_y_lags=include_future_y_lags
+        )
     
     @staticmethod
-    def _prepare_lags_only(data, target, features, time_col, max_lags, data_type ='air'):
+    def _prepare_lags_only(data, target, features, time_col, max_lags, data_type='air',include_x_lags=True, include_future_y_lags=False ):
         """
-        Conservative baseline: Just lags with proper multiple lag support
-        """
-        print(f"  Using LAGS ONLY strategy with {max_lags} lags")
+        Conservative baseline: lags of target, and optionally lags of predictors X.
         
-        # Only hour for minimal time awareness
+        Parameters:
+        -----------
+        data : pd.DataFrame
+            Input dataframe
+        target : str
+            Target variable name
+        features : list
+            List of predictor variable names
+        time_col : str
+            Name of time column
+        max_lags : int
+            Number of lags to include (both past and future if enabled)
+        data_type : str
+            Type of data ('air', 'simulated', 'physionet')
+        include_x_lags : bool
+            If True, include lagged values of predictor variables
+        include_future_y_lags : bool
+            If True, include FUTURE values of target (bidirectional context)
+            WARNING: Only use for imputation tasks, NOT for forecasting!
+        
+        Returns:
+        --------
+        X : np.ndarray
+            Feature matrix
+        y : np.ndarray
+            Target values
+        used_indices : np.ndarray
+            Indices used from original dataframe
+        """
+        
+        lag_type = "BIDIRECTIONAL" if include_future_y_lags else "PAST ONLY"
+        print(f"  Using LAGS ONLY strategy with {max_lags} lags ({lag_type})")
+        
+        if include_future_y_lags:
+            print(f"  ⚠️  WARNING: Using future y lags - only appropriate for IMPUTATION, not forecasting!")
+        
+        # ==========================================
+        # Time feature extraction
+        # ==========================================
         time_features = []
+        
         if data_type == 'air' or data_type == 'simulated':
             if time_col in data.columns and pd.api.types.is_datetime64_any_dtype(data[time_col]):
+                data = data.copy()  # Avoid modifying original
                 data['hour'] = data[time_col].dt.hour
                 data['dayofweek'] = data[time_col].dt.dayofweek
                 time_features = ['hour', 'dayofweek']
@@ -36,9 +78,8 @@ class SelectiveDataPreparation:
         elif data_type == 'physionet':
             if time_col in data.columns:
                 print(f"🔍 PHYSIONET simple time processing...")
-                
+                data = data.copy()  # Avoid modifying original
                 try:
-                    # Extract just the numeric patterns from time strings
                     def extract_time_features(time_str):
                         """Extract hour and minute from physionet time format"""
                         try:
@@ -49,20 +90,17 @@ class SelectiveDataPreparation:
                             
                             if ':' in time_str:
                                 parts = time_str.split(':')
-                                hours = int(parts[0]) % 24  # Wrap around 24 hours
+                                hours = int(parts[0]) % 24
                                 minutes = int(parts[1]) if len(parts) > 1 else 0
                                 return hours, minutes
                             else:
-                                # If no colon, treat as total minutes
                                 total_min = int(float(time_str))
                                 hours = (total_min // 60) % 24
                                 minutes = total_min % 60
                                 return hours, minutes
-                                
                         except:
                             return 0, 0  # Default fallback
                     
-                    # Apply extraction
                     time_data = data[time_col].apply(extract_time_features)
                     data['hour'] = [t[0] for t in time_data]
                     data['minutes'] = [t[1] for t in time_data]
@@ -72,36 +110,77 @@ class SelectiveDataPreparation:
                     print(f"   ✅ Extracted time features successfully")
                     print(f"   Sample hours: {data['hour'].head().tolist()}")
                     print(f"   Sample minutes: {data['minutes'].head().tolist()}")
-                    
                 except Exception as e:
                     print(f"   ❌ Time feature extraction failed: {e}")
-                    # Fallback: create dummy time features
-                    data['hour'] = 12  # Constant hour
-                    data['minutes'] = 0  # Constant minutes
+                    data['hour'] = 12
+                    data['minutes'] = 0
                     time_features = ['hour', 'minutes']
                     print(f"   Using constant time features as fallback")
-                   
         
+        # ==========================================
+        # Build feature matrix
+        # ==========================================
         all_features = features + time_features
         feature_matrix = []
         target_values = []
         used_indices = []
         
-        # Start from max_lags to preserve more data
-        for t in range(max_lags, len(data)):
-            # Current features
+        # Determine loop range based on lag type
+        if include_future_y_lags:
+            # Need space for both past AND future lags
+            start_idx = max_lags
+            end_idx = len(data) - max_lags
+        else:
+            # Only need space for past lags
+            start_idx = max_lags
+            end_idx = len(data)
+        
+        if start_idx >= end_idx:
+            print(f"  ❌ ERROR: Not enough data for {max_lags} lags (need at least {2*max_lags + 1} rows)")
+            return np.array([]), np.array([]), np.array([])
+        
+        for t in range(start_idx, end_idx):
+            # Current (non-lagged) predictors + time features
             current_features = data[all_features].iloc[t].values
             
-            # Add multiple lags of target to capture temporal dependency
+            lag_blocks = []
+            
+            # ==========================================
+            # Option 1: Lags of X (predictor variables) - PAST ONLY
+            # ==========================================
+            if include_x_lags and max_lags > 0:
+                x_lags = []
+                for lag in range(1, max_lags + 1):
+                    # Take all predictors at time t - lag (past only)
+                    x_lags.extend(data[features].iloc[t - lag].values)
+                lag_blocks.append(np.array(x_lags))
+            
+            # ==========================================
+            # Option 2: PAST lags of target (y)
+            # ==========================================
             if max_lags > 0:
-                # FIXED: Create multiple lags properly
-                target_lags = []
+                past_y_lags = []
                 for lag in range(1, max_lags + 1):
                     lag_value = data[target].iloc[t - lag]
-                    target_lags.append(lag_value)
-                
-                # Combine current features with all lag features
-                features_row = np.concatenate([current_features, target_lags])
+                    past_y_lags.append(lag_value)
+                lag_blocks.append(np.array(past_y_lags))
+            
+            # ==========================================
+            # Option 3: FUTURE lags of target (y) - NEW
+            # ==========================================
+            if include_future_y_lags and max_lags > 0:
+                future_y_lags = []
+                for lag in range(1, max_lags + 1):
+                    # Take target at time t + lag (future)
+                    lag_value = data[target].iloc[t + lag]
+                    future_y_lags.append(lag_value)
+                lag_blocks.append(np.array(future_y_lags))
+            
+            # ==========================================
+            # Combine all features
+            # ==========================================
+            if lag_blocks:
+                features_row = np.concatenate([current_features] + lag_blocks)
             else:
                 features_row = current_features
             
@@ -112,14 +191,26 @@ class SelectiveDataPreparation:
         X = np.array(feature_matrix)
         y = np.array(target_values)
         
-        # Calculate actual number of lag features added
-        n_lag_features = max_lags if max_lags > 0 else 0
+        # ==========================================
+        # Summary statistics
+        # ==========================================
+        n_time_features = len(time_features)
+        n_x_lags = len(features) * max_lags if (include_x_lags and max_lags > 0) else 0
+        n_past_y_lags = max_lags if max_lags > 0 else 0
+        n_future_y_lags = max_lags if (include_future_y_lags and max_lags > 0) else 0
         
         print(f"  Final feature matrix: {X.shape}")
-        print(f"  Features: {len(features)} predictors + {len(time_features)} time + {n_lag_features} lags")
+        print(
+            f"  Features: {len(features)} current predictors + "
+            f"{n_time_features} time + "
+            f"{n_x_lags} X-lag features + "
+            f"{n_past_y_lags} past y-lags + "
+            f"{n_future_y_lags} future y-lags"
+        )
+        print(f"  Total features per sample: {X.shape[1] if len(X) > 0 else 0}")
+        print(f"  Samples used: {len(used_indices)} out of {len(data)} ({100*len(used_indices)/len(data):.1f}%)")
         
         return X, y, np.array(used_indices)
-
 
 class SimpleMCMCWithPlaceholder:
     """
@@ -128,7 +219,7 @@ class SimpleMCMCWithPlaceholder:
     def __init__(self, time_col='Date_Time', n_samples=12000, burn_in=None, initialization='mean'):
         self.time_col = time_col
         self.n_samples = n_samples
-        self.burn_in = burn_in or max(4000, int(n_samples * 0.6))
+        self.burn_in = max(4000, int(n_samples * 0.2))
         self.scalers = {}
         self.data_prep = SelectiveDataPreparation()
         self.initialization = initialization
@@ -316,48 +407,49 @@ class SimpleMCMCWithPlaceholder:
             return np.inf
     
     @staticmethod
-    def calculate_mae(true_values, predicted_values):
+    def calculate_nmae(true_values, predicted_values):
         """Calculate Mean Absolute Error with robust error handling"""
         try:
             true_clean, pred_clean = SimpleMCMCWithPlaceholder.validate_inputs(true_values, predicted_values)
-            return np.mean(np.abs(pred_clean - true_clean))
+            mae = np.mean(np.abs(pred_clean - true_clean))
+            #range_val = np.max(true_clean) - np.min(true_clean)
+            denom = np.std(true_clean)
+            if denom < 1e-8:
+                print("⚠️  True values have no range, returning MAE")
+                return mae
+            return mae/denom
         except (ValueError, ZeroDivisionError) as e:
             print(f"⚠️  MAE calculation failed: {e}")
             return np.inf
     
     @staticmethod
-    def calculate_mre(true_values, predicted_values, min_threshold=1e-8):
-        """Calculate Mean Relative Error with robust handling of zero values"""
+    def calculate_nmre(true_values, predicted_values, min_threshold=1e-8):
+        """MRE as percentage (no additional range normalization)"""
         try:
             true_clean, pred_clean = SimpleMCMCWithPlaceholder.validate_inputs(true_values, predicted_values)
-            
-            # Handle near-zero values by using a minimum threshold
             abs_true = np.abs(true_clean)
             
-            # If all values are below threshold, return a reasonable MRE
             if np.all(abs_true < min_threshold):
-                print(f"⚠️  All true values near zero (< {min_threshold}), using MAE instead")
-                # For near-zero true values, MRE doesn't make sense, so use normalized MAE
-                mae = np.mean(np.abs(pred_clean - true_clean))
-                return mae * 100  # Convert to percentage-like scale
+                # Fallback to NMAE when true values are near zero
+                range_val = np.max(true_clean) - np.min(true_clean)
+                if range_val < min_threshold:
+                    return np.mean(np.abs(pred_clean - true_clean)) * 100
+                return (np.mean(np.abs(pred_clean - true_clean)) / range_val) * 100
             
-            # Use maximum of absolute value and threshold to avoid division by very small numbers
             denominator = np.maximum(abs_true, min_threshold)
             relative_errors = np.abs(pred_clean - true_clean) / denominator
-            
-            # Remove any potential infinite or very large values
-            finite_mask = np.isfinite(relative_errors) & (relative_errors < 1000)  # Cap at 100,000%
+            finite_mask = np.isfinite(relative_errors) & (relative_errors < 10.0)
             
             if not np.any(finite_mask):
-                print("⚠️  No finite relative errors found")
                 return np.inf
-            
+                
+            # Return MRE as percentage - no additional range normalization
             return np.mean(relative_errors[finite_mask]) * 100
             
-        except (ValueError, ZeroDivisionError) as e:
-            print(f"⚠️  MRE calculation failed: {e}")
+        except Exception as e:
+            print(f"NMRE calculation failed: {e}")
             return np.inf
-    
+        
     @staticmethod
     def calculate_nrmse(true_values, predicted_values, method='std', min_std=1e-8):
         """Calculate Normalized RMSE with robust handling of zero variance"""
@@ -389,10 +481,10 @@ class SimpleMCMCWithPlaceholder:
     def calculate_all_metrics(self, true_values, predicted_values):
         """Calculate all metrics at once with robust error handling"""
         metrics = {
-            'rmse': self.calculate_rmse(true_values, predicted_values),
-            'mae': self.calculate_mae(true_values, predicted_values),
-            'mre': self.calculate_mre(true_values, predicted_values),
-            'nrmse': self.calculate_nrmse(true_values, predicted_values)
+            'RMSE': self.calculate_rmse(true_values, predicted_values),
+            'NMAE': self.calculate_nmae(true_values, predicted_values),
+            'NMRE': self.calculate_nmre(true_values, predicted_values),
+            'NRMSE': self.calculate_nrmse(true_values, predicted_values)
         }
         
         # Log any infinite metrics
@@ -401,10 +493,9 @@ class SimpleMCMCWithPlaceholder:
             print(f"⚠️  Infinite metrics detected: {infinite_metrics}")
         
         return metrics
-
     def run_mcmc_with_separated_phases(mcmc_mice, X_obs_scaled, y_obs_scaled, X_miss_scaled, y_miss, 
                            target_name, mcmc_seed=None, verbose=False, show_convergence_plots=False,
-                           output_dir="./plots_RWM", run_number=None):
+                           output_dir="./plots_RWM_BRITS", run_number=None):
         """
         UPDATED: Three-phase approach - dual chains for diagnostics + fresh chain for predictions
         PHASE 1: Run dual chains for convergence diagnostics only
@@ -506,8 +597,6 @@ class SimpleMCMCWithPlaceholder:
                     param_name=param,
                     run_number=1
                 )
-
-  
 
         # ========================================
         # PHASE 2: DIAGNOSTICS EVALUATION (NON-BLOCKING)

@@ -2,7 +2,7 @@ from Comparison_runs import *
 
 def enhanced_run_experiment(complete_data, data_with_time, missing_data, 
                           time_col='Time', n_runs=3, n_imputations=5, max_iter=5,
-                          visualize_runs=[1, 15, 30], save_plots=True, output_dir='./plots'):
+                          visualize_runs=[1, 15, 30], save_plots=True, output_dir='./plots_RWM_BRITS'):
     """
     Enhanced main function with integrated visualizations
     
@@ -32,14 +32,14 @@ def enhanced_run_experiment(complete_data, data_with_time, missing_data,
     
     print("="*100)
     print("ENHANCED 30 RUNS × 5 IMPUTATIONS EXPERIMENT WITH VISUALIZATION")
-    print("Comparing: MICE vs MCMC_MICE_V1 vs MCMC_MICE_V2")
+    print("Comparing: MICE vs MCMC_MICE_V1 vs MCMC_MICE_V2 vs BRITS")
     print("="*100)
     print(f"Configuration:")
     print(f"  • Experimental runs: {n_runs}")
     print(f"  • Imputations per run: {n_imputations}")
     print(f"  • MICE iterations: {max_iter}")
-    #print(f"  • MCMC samples: 12,500")
-    #print(f"  • MCMC burn-in: 4,800")
+    print(f"  • MCMC samples: 12,500")
+    print(f"  • MCMC burn-in: 4,800")
     print(f"  • Time column: {time_col}")
     print(f"  • Visualization runs: {visualize_runs}")
     print(f"  • Save plots: {save_plots}")
@@ -47,17 +47,12 @@ def enhanced_run_experiment(complete_data, data_with_time, missing_data,
         print(f"  • Output directory: {output_dir}")
     print("="*100)
     
-    # Create output directory
-    if save_plots:
-        import os
-        os.makedirs(output_dir, exist_ok=True)
-        print(f"📁 Created output directory: {output_dir}")
-    
     # Run the enhanced experiment with visualization
     summary_results, all_results, timing_results = enhanced_comparison_with_runs(
         complete_data=complete_data,
         missing_data=missing_data,
         data_with_time=data_with_time,
+        brits_results_path='./brits_results.pkl',
         time_col=time_col,
         n_runs=n_runs,
         n_imputations=n_imputations,
@@ -78,8 +73,7 @@ def enhanced_run_experiment(complete_data, data_with_time, missing_data,
         print(f"🔍 Detailed plots: imputation_comparison_run[X]_[COLUMN].png")
         print(f"📋 Accuracy plots: prediction_accuracy_run[X]_[COLUMN].png")
     
-    return summary_results, all_results
-
+    return summary_results, all_results, timing_results
 
 if __name__ == "__main__":
     # Enhanced example usage with visualization

@@ -5,7 +5,7 @@ from Visualisation import *
 
 def run_single_mcmc(mcmc_mice, data_with_time, missing_data, subdata, target_col, missing_indices, true_values, 
                     n_posterior_samples=5, max_iter=5, run_seed=None, verbose=False, 
-                    show_convergence_plots=False, output_dir="./plots_RWM", run_number=None):
+                    show_convergence_plots=False, output_dir="./plots_RWM_BRITS", run_number=None):
     """
     Run MCMC with separated convergence check and fresh prediction phase.
     """
@@ -61,7 +61,7 @@ def run_single_mcmc(mcmc_mice, data_with_time, missing_data, subdata, target_col
                 try:
                     # Prepare data
                     X, y, used_indices = mcmc_mice.data_prep.prepare_selective_data(
-                        imputed_data, current_var, predictors, mcmc_mice.time_col, max_lags=2, data_type='air'
+                        imputed_data, current_var, predictors, mcmc_mice.time_col, max_lags=2, data_type='physionet'
                     )
                     
                     if len(X) == 0 or len(y) == 0:
@@ -71,10 +71,11 @@ def run_single_mcmc(mcmc_mice, data_with_time, missing_data, subdata, target_col
                     used_indices_set = set(used_indices)
                     original_missing_set = set(missing_mask[current_var][missing_mask[current_var]].index)
                     matching_indices = sorted(original_missing_set.intersection(used_indices_set))
-                    true_values = subdata.loc[matching_indices, target_col].values
-                    print("Total missing (artificial):", len(original_missing_set))  # Or however you created it
-                    print("Used in MCMC prediction:", len(matching_indices))
-                    print("True values retrieved for comparison:", len(true_values))
+                    
+                    #true_values = subdata.loc[matching_indices, target_col].values
+                    #print("Total missing (artificial):", len(original_missing_set))  # Or however you created it
+                    #print("Used in MCMC prediction:", len(matching_indices))
+                    #print("True values retrieved for comparison:", len(true_values))
                                     
                     aligned_missing_mask = np.array([idx in original_missing_set for idx in used_indices])
                     aligned_observed_mask = ~aligned_missing_mask
@@ -85,7 +86,8 @@ def run_single_mcmc(mcmc_mice, data_with_time, missing_data, subdata, target_col
                     if len(y_obs) < 5:
                         continue
 
-                    should_show_plots = (show_convergence_plots and current_var == target_col and iteration == 0)
+                    #should_show_plots = (show_convergence_plots and current_var == target_col and iteration == 0)
+                    should_show_plots = (show_convergence_plots and iteration == 0 and var_idx <= 3)
                     mcmc_seed_val = (run_seed + iteration * 1000 + var_idx * 100 + 50000) if run_seed else None
                     
                     visualizer = MCMCMICEVisualizer()
@@ -296,10 +298,10 @@ def run_single_mcmc(mcmc_mice, data_with_time, missing_data, subdata, target_col
             true_values_aligned = subdata.loc[matching_indices, target_col].values
             metrics = mcmc_mice.calculate_all_metrics(true_values_aligned, unscaled_pred)
 
-            rmse_list.append(metrics['rmse'])
-            mae_list.append(metrics['mae'])
-            mre_list.append(metrics['mre'])
-            nrmse_list.append(metrics['nrmse'])
+            rmse_list.append(metrics['RMSE'])
+            mae_list.append(metrics['NMAE'])
+            mre_list.append(metrics['NMRE'])
+            nrmse_list.append(metrics['NRMSE'])
 
             full_imputed_dataset = imputed_data.copy()
             for i, idx in enumerate(matching_indices):
@@ -327,3 +329,4 @@ def run_single_mcmc(mcmc_mice, data_with_time, missing_data, subdata, target_col
             import traceback
             traceback.print_exc()
         return np.inf, np.inf, np.inf, np.inf, np.inf
+    
