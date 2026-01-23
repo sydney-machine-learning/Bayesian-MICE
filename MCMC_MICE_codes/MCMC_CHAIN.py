@@ -60,7 +60,7 @@ class MCMC_CHAIN:
             self.set_default_hyperparameters()
             self.set_optimal_step_sizes()
             # Increase burn-in for better convergence
-            self.n_burnin = max(n_burnin, int(n_samples * 0.5))
+            self.n_burnin = max(n_burnin, int(n_samples * 0.2))
         else:
             self.set_default_hyperparameters()
             self.adjust_step_sizes()
