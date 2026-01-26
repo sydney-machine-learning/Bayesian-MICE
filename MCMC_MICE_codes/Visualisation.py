@@ -154,7 +154,24 @@ class MCMCMICEVisualizer:
             plt.show()
 
     def plot_imputation_errors(self, complete_data, imputed_datasets_dict, 
-                                missing_indices, target_col=None, fname=None):
+                            missing_indices, target_col=None, fname=None):
+        """
+        Plot prediction errors (Actual - Predicted) for each method in a 2-column grid.
+        All methods share the same y-axis scale for fair comparison.
+        
+        Parameters:
+        -----------
+        complete_data : pd.Series or pd.DataFrame
+            Original complete dataset
+        imputed_datasets_dict : dict
+            Dictionary with method names as keys and imputed Series as values
+        missing_indices : list
+            Indices of missing values
+        target_col : str, optional
+            Column name if DataFrame
+        fname : str, optional
+            Filename to save the plot
+        """
         
         COLORS = {
             "MICE": "#E69F00",          # bold orange
@@ -169,7 +186,9 @@ class MCMCMICEVisualizer:
         else:
             true_values = complete_data[target_col].loc[missing_indices].values
         
+        # ========================================
         # Calculate errors for each method
+        # ========================================
         errors_dict = {}
         for method_name, imputed_data in imputed_datasets_dict.items():
             if isinstance(imputed_data, pd.Series):
@@ -181,10 +200,21 @@ class MCMCMICEVisualizer:
             errors = true_values - imputed_values
             errors_dict[method_name] = errors
         
+        # ========================================
+        # Calculate global y-axis limits across ALL methods
+        # ========================================
+        all_errors = np.concatenate(list(errors_dict.values()))
+        global_min = np.min(all_errors)
+        global_max = np.max(all_errors)
+        
+        # Add 5% padding for better visualization
+        error_range = global_max - global_min
+        padding = 0.05 * error_range if error_range > 0 else 1.0
+        ylim_min = global_min - padding
+        ylim_max = global_max + padding
+        
         # Determine grid size (2 columns)
         n_methods = len(errors_dict)
-        #n_cols = 2
-        #n_rows = int(np.ceil(n_methods / n_cols))
         
         fig, axes = plt.subplots(2, 2, figsize=(16, 10))
         
@@ -197,14 +227,16 @@ class MCMCMICEVisualizer:
         # X-axis: missing value positions
         x_positions = np.arange(len(missing_indices))
         
-        # Plot each method
+        # ========================================
+        # Plot each method with SHARED y-axis
+        # ========================================
         for idx, (method_name, errors) in enumerate(errors_dict.items()):
             ax = axes[idx]
             color = COLORS.get(method_name, "#333333")
             
             # Plot errors as scatter + line
-            ax.plot(x_positions, errors, color=color, linewidth=1.5, alpha=0.6, marker='o', 
-                    markersize=4, label=method_name)
+            ax.plot(x_positions, errors, color=color, linewidth=1.5, alpha=0.6, 
+                    marker='o', markersize=4, label=method_name)
             
             # Add zero line
             ax.axhline(y=0, color='black', linestyle='--', linewidth=1.5, alpha=0.5)
@@ -219,6 +251,9 @@ class MCMCMICEVisualizer:
                     fontsize=11, verticalalignment='top',
                     bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
             
+            # ✅ SET SHARED Y-AXIS LIMITS FOR ALL SUBPLOTS
+            ax.set_ylim(ylim_min, ylim_max)
+            
             ax.set_xlabel('Missing Value Index', fontsize=18)
             ax.set_ylabel('Error (Actual - Predicted)', fontsize=18)
             ax.set_title(method_name, fontsize=13, pad=10)
@@ -229,8 +264,6 @@ class MCMCMICEVisualizer:
         for idx in range(n_methods, len(axes)):
             axes[idx].axis('off')
         
-        #fig.suptitle('Imputation Errors: Actual - Predicted Values', 
-                     #fontsize=16, fontweight='bold', y=0.998)
         fig.tight_layout()
         
         if fname is not None:
@@ -239,6 +272,7 @@ class MCMCMICEVisualizer:
             plt.close()
         else:
             plt.show()
+        
     
     def plot_prediction_accuracy_comparison(self, true_values, predictions_dict, 
                                           method_names=None, target_col=None, 
