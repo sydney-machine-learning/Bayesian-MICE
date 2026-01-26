@@ -8,7 +8,7 @@ Two variants are implemented:
 * **MCMC_MICE_V1:** Mean-based initialisation
 * **MCMC_MICE_V2:** Time-aware initialisation exploiting temporal structure and autocorrelation
   
-Both variants support **Random Walk Metropolis (RWM)** and **Metropolis-Adjusted Langevin Algorithm (MALA)** samplers, with theoretically motivated optimal scaling to improve convergence and mixing.
+Both variants support **Random Walk Metropolis (RWM)** or other samplers, with theoretically motivated optimal scaling to improve convergence and mixing.
 
 # Repository structure and Contents
 The repository contents four main folders that organise the projects's codebase: **Datasets**, **MCMC_MICE_codes**, **AirQuality_Plots** and **PhysioNet_Plots**.
