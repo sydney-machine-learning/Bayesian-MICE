@@ -1,14 +1,10 @@
 # Bayesian-MICE
-This repository contains the implementation and experimental results for Bayes-MICE, a Bayesian extension of Multiple Imputation by Chained Equation (MICE) designed for uncertainty-aware imputation of time-series data. The method integrated Markov Chain Monte Cralo (MCMC) samply within the fully Condition Specification (FCS) framework and is evaluated on both environmental and clinical datasets. 
+This repository contains the implementation and experimental results for tBayes-MICE, a Bayesian extension of Multiple Imputation by Chained Equation (MICE) designed for uncertainty-aware imputation of time-series data. The method integrated Markov Chain Monte Cralo (MCMC) samply within the fully Condition Specification (FCS) framework and is evaluated on both environmental and clinical datasets. 
 
 # Overview
 Missing data are pervasive in real-world time-series applications, particularly in environmental monitoring and healthcare, where reliable uncertainty quantification is essential. Bayes-MICE extends classical MICE by replacing deterministic regression updates with Bayesian regression models whose parameters and imputations are jointly sampled via MCMC.
-
-Two variants are implemented:
-* **tBayes-MICE_V1:** Mean-based initialisation
-* **tBayes_MICE_V2:** Time-aware initialisation exploiting temporal structure and autocorrelation
   
-Both variants support **Random Walk Metropolis (RWM)** or other samplers, with theoretically motivated optimal scaling to improve convergence and mixing.
+The method support **Random Walk Metropolis (RWM)** or other samplers, with theoretically motivated optimal scaling to improve convergence and mixing.
 
 # Repository structure and Contents
 The repository contents four main folders that organise the projects's codebase: **Datasets**, **MCMC_MICE_codes**, **AirQuality_Plots** and **PhysioNet_Plots**.
