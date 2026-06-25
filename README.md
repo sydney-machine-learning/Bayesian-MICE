@@ -33,7 +33,7 @@ Bayesian-MICE/
 ├── requirements.txt             # Python dependencies
 └── README.md
 
-6. **Requirements**
+# Requirements
    The implementations relies on standard scientific Python libraries:
    pip install numpy pandas scikit-learn matplotlib arviz scipy pypots
 
