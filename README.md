@@ -1,4 +1,4 @@
-# Bayesian-MICE (Bayes-MICE)
+# Bayesian-MICE (tBayes-MICE)
 
 > **Bayesian Multiple Imputation by Chained Equations for uncertainty-aware imputation of time-series data**
 
