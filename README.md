@@ -7,31 +7,6 @@ The method support **Random Walk Metropolis (RWM)** or other samplers, with theo
 
 # Repository structure and Contents
 The repository contents four main folders that organise the projects's codebase: **Datasets**, **MCMC_MICE_codes**, **AirQuality_Plots** and **PhysioNet_Plots**.
-Bayesian-MICE/
-├── Datasets/                    # All datasets used in experiments
-│   ├── AirQualityUCI.csv        # Original AirQuality data (hourly, unprocessed)
-│   ├── Data_subset_AirQuality.csv       # AirQuality after removing original NaNs
-│   ├── Data_with_missing_AirQuality.csv # AirQuality with artificial missing values
-│   ├── physionet_5000patients.csv       # PhysioNet tabular data (≤60% missingness)
-│   ├── physio_subdata.csv               # PhysioNet after removing all NaNs
-│   └── physio_with_missing.csv          # PhysioNet with artificial missing values
-│
-├── MCMC_MICE_codes/             # Core implementation
-│   ├── placeholder.py           # Missing value initialisation (mean + time-aware)
-│   ├── PhysioData_Loader.py     # Raw PhysioNet → structured format + masking
-│   ├── MCMC_CHAIN.py            # MCMC samplers (RWM)
-│   ├── SimpleMCMC.py            # Lagged predictors + parallel MCMC chains
-│   ├── Run_Single_MCMC.py       # MCMC within each MICE iteration + convergence
-│   ├── Comparison_runs.py       # 30-run multiple imputation comparison
-│   ├── Run_experiments.py       # Full experimental workflow manager
-│   ├── Visualisation.py         # All plots used in the paper
-│   ├── BRITS.py                 # BRITS baseline (via pypots)
-│   └── packages.py              # Full package list
-│
-├── AirQuality_Plots/            # Figures from AirQuality experiments
-├── PhysioNet_Plots/             # Figures from PhysioNet experiments
-├── requirements.txt             # Python dependencies
-└── README.md
 
 # Requirements
    The implementations relies on standard scientific Python libraries:
