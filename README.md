@@ -11,16 +11,8 @@
 
 ## Overview
 
-Missing data are pervasive in real-world time-series applications, particularly in environmental monitoring and healthcare, where reliable uncertainty quantification is essential. **Bayes-MICE** extends classical MICE by replacing deterministic regression updates with Bayesian regression models whose parameters and imputations are jointly sampled via Markov Chain Monte Carlo (MCMC).
-
-Two variants are implemented:
-
-| Variant | Description |
-|---|---|
-| `tBayes-MICE_V1` | Mean-based initialisation |
-| `tBayes-MICE_V2` | Time-aware initialisation exploiting temporal structure and autocorrelation |
-
-Both variants support **Random Walk Metropolis (RWM)** sampling, with theoretically motivated optimal scaling to improve convergence and mixing.
+Missing data are pervasive in real-world time-series applications, particularly in environmental monitoring and healthcare, where reliable uncertainty quantification is essential. **tBayes-MICE** extends classical MICE by replacing deterministic regression updates with Bayesian regression models whose parameters and imputations are jointly sampled via Markov Chain Monte Carlo (MCMC).
+The method support **Random Walk Metropolis (RWM)** sampling, with theoretically motivated optimal scaling to improve convergence and mixing.
 
 ---
 
@@ -138,21 +130,21 @@ Outputs:
 - `Datasets/physio_subdata.csv`
 - `Datasets/physio_with_missing.csv`
 
-### Step 2 — Run the full experiment
-
-```bash
-python MCMC_MICE_codes/Run_experiments.py
-```
-
-Runs both variants (V1 and V2) on both datasets over 30 independent runs.
-
-### Step 3 — Run comparison across methods
+### Step 2 — Run comparison across methods
 
 ```bash
 python MCMC_MICE_codes/Comparison_runs.py
 ```
 
-Compares tBayes-MICE V1, tBayes-MICE V2 and BRITS over 30 runs.
+Compares tBayes-MICE, MICE and BRITS over 30 runs.
+
+### Step 3 — Run the full experiment
+
+```bash
+python MCMC_MICE_codes/Run_experiments.py
+```
+
+Runs all methods on both datasets over 30 independent runs.
 
 ### Step 4 — Generate plots
 
@@ -164,20 +156,6 @@ Reproduces all figures from the paper. Output saved to `AirQuality_Plots/` and `
 
 ---
 
-## Running a Single Experiment
-
-```python
-from MCMC_MICE_codes.Run_Single_MCMC import run_bayes_mice
-
-results = run_bayes_mice(
-    dataset  = "AirQuality",   # "AirQuality" or "PhysioNet"
-    variant  = "V2",           # "V1" or "V2"
-    sampler  = "RWM",          # Random Walk Metropolis
-    n_chains = 4,
-    n_iter   = 1000,
-    seed     = 42
-)
-```
 
 ---
 
@@ -204,7 +182,6 @@ Performance on AirQuality dataset (MAE, lower is better):
 |---|---|---|
 | MICE (classical) | — | — |
 | tBayes-MICE V1 | — | — |
-| tBayes-MICE V2 | — | — |
 | BRITS | — | — |
 
 Full results with confidence intervals are reported in the paper.
@@ -216,12 +193,11 @@ Full results with confidence intervals are reported in the paper.
 If you use this code or results in your work, please cite:
 
 ```bibtex
-@article{bayesmice2026,
-  title   = {Bayes-MICE: Bayesian Multiple Imputation by Chained Equations
-             for Uncertainty-Aware Time-Series Imputation},
-  author  = {[Authors]},
-  journal = {[Journal]},
-  year    = {2026},
+@article{ibenegbu2026tbayes,
+  title={tBayes-MICE: A Bayesian Approach to Multiple Imputation for Time Series Data},
+  author={Ibenegbu, Amuche and de Micheaux, Pierre Lafaye and Chandra, Rohitash},
+  journal={arXiv preprint arXiv:2603.27142},
+  year={2026}
   url     = {https://arxiv.org/abs/2603.27142}
 }
 ```
@@ -233,12 +209,5 @@ If you use this code or results in your work, please cite:
 - Found a bug? Open an [issue](https://github.com/sydney-machine-learning/Bayesian-MICE/issues)
 - Want to contribute? Fork the repository and submit a pull request
 
----
-
-## License
-
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
-
----
 
 *Experiments were run on the Katana High Performance Computing cluster, supported by Research Technology Services at UNSW Sydney.*
