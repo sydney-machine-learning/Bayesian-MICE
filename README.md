@@ -5,8 +5,8 @@ This repository contains the implementation and experimental results for Bayes-M
 Missing data are pervasive in real-world time-series applications, particularly in environmental monitoring and healthcare, where reliable uncertainty quantification is essential. Bayes-MICE extends classical MICE by replacing deterministic regression updates with Bayesian regression models whose parameters and imputations are jointly sampled via MCMC.
 
 Two variants are implemented:
-* **MCMC_MICE_V1:** Mean-based initialisation
-* **MCMC_MICE_V2:** Time-aware initialisation exploiting temporal structure and autocorrelation
+* **tBayes-MICE_V1:** Mean-based initialisation
+* **tBayes_MICE_V2:** Time-aware initialisation exploiting temporal structure and autocorrelation
   
 Both variants support **Random Walk Metropolis (RWM)** or other samplers, with theoretically motivated optimal scaling to improve convergence and mixing.
 
